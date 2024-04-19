@@ -20,16 +20,17 @@ class ModifierType(Enum):
 
 
 class Label(Enum):
-    MALICIOUS = 1
     BENIGN = 0
+    DNS2TCp = 1
+    IODINE = 2
+    DNSCAT2 = 3
 
 
 class DataModifier:
-    def __init__(self, output: str, output_type: ModifierType, label: Label, custom_headers: dict = None):
+    def __init__(self, output: str, output_type: ModifierType, label: Label):
         self.label = label
         self.output = output
         self.output_type = output_type
-        self.custom_headers = custom_headers
         self.pcap_list = None
 
     def run(self, pcap_files_dir: str):
@@ -96,8 +97,7 @@ class DataModifier:
 
             # Add padding to the data_row
             data_row = [
-                [flow_id] + item + [0] * (PAYLOAD_LENGTH_THRESHOLD - len(item)) + list(self.custom_headers.values()) + [
-                    self.label.value] for item in data_row]
+                [flow_id] + item + [0] * (PAYLOAD_LENGTH_THRESHOLD - len(item)) + [self.label.value] for item in data_row]
 
             self.write(data_row)
 
@@ -113,8 +113,7 @@ class DataModifier:
 
     def write(self, data):
         df = pd.DataFrame(data=data,
-                          columns=["flow_id"] + [f'byte_{i + 1}' for i in range(512)] + ["label"] + list(
-                              self.custom_headers.keys()))
+                          columns=["flow_id"] + [f'byte_{i + 1}' for i in range(512)] + ["label"])
 
         if self.output_type == ModifierType.CSV:
             df.to_csv(self.output, index=False, mode='a', header=False)
@@ -123,7 +122,7 @@ class DataModifier:
 
     def init_output(self):
         # Generate header
-        headers = ["flow_id"] + [f'byte_{i + 1}' for i in range(512)] + list(self.custom_headers.keys()) + ["label"]
+        headers = ["flow_id"] + [f'byte_{i + 1}' for i in range(512)] + ["label"]
         df = pd.DataFrame(columns=headers)
 
         if self.output_type == ModifierType.CSV:
@@ -138,11 +137,9 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--pcap_files_dir', type=str, required=True,
                         help='Input directory containing pcap files that need to be parsed')
     parser.add_argument('-o', '--output', type=str, required=True, help='Path of the output file')
-    parser.add_argument('-l', '--label', type=int, choices=[0, 1], required=True,
-                        help='Flag of data, can be 0 for benign and 1 for malicious')
-    parser.add_argument('--custom_headers', type=json.loads, required=False, default={},
-                        help='A dictionary of custom headers')
-
+    parser.add_argument('-l', '--label', type=int, choices=[item.value for item in Label.__members__.values()],
+                        required=True,
+                        help='Flag of data: \n 0 for benign \n 1 for dns2tcp \n 2 for iodine \n 3 for dnscat2')
     parser.add_argument('-m', '--mode', type=str, choices=['csv', 'feather'], required=True,
                         help='Output mode: csv or feather')
 
@@ -150,10 +147,7 @@ if __name__ == '__main__':
 
     mode = ModifierType.CSV if args.mode == 'csv' else ModifierType.FEATHER
 
-    DataModifier(output=args.output, output_type=mode, label=Label(args.label),
-                 custom_headers=args.custom_headers).run(args.pcap_files_dir)
+    DataModifier(output=args.output, output_type=mode, label=Label(args.label)).run(args.pcap_files_dir)
 
-    # DataModifier(output='datasets/test_pcap/output.csv',
-    #              output_type=ModifierType.CSV,
-    #              label=Label.MALICIOUS,
-    #              custom_headers={'type': 'test', 'sasd': 'asdasd'}).run("/home/bkcs/Documents/doh/pcaps/DoHBenign-NonDoH/test")
+    # DataModifier(output='datasets/test_pcap/output.csv', output_type=ModifierType.CSV, label=Label.MALICIOUS,
+    # custom_headers={'type': 'test', 'sasd': 'asdasd'}).run("/home/bkcs/Documents/doh/pcaps/DoHBenign-NonDoH/test")

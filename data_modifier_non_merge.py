@@ -10,22 +10,24 @@ import glob
 
 PACKETS_NUM_THRESHOLD = 20
 
+
 class ModifierType(Enum):
     CSV = 1
     FEATHER = 2
 
 
 class Label(Enum):
-    MALICIOUS = 1
     BENIGN = 0
+    DNS2TCp = 1
+    IODINE = 2
+    DNSCAT2 = 3
 
 
 class DataModifier:
-    def __init__(self, output: str, output_type: ModifierType, label: Label, custom_headers: dict = None, ):
+    def __init__(self, output: str, output_type: ModifierType, label: Label):
         self.label = label
         self.output = output
         self.output_type = output_type
-        self.custom_headers = custom_headers
 
         self.pcap_list = None
         self.data_list = list()
@@ -78,11 +80,6 @@ class DataModifier:
                 # Add the label
                 payload_arr.append(self.label)
 
-                # Add the custom headers
-                if self.custom_headers is not None:
-                    for key, value in self.custom_headers.items():
-                        payload_arr.append(value)
-
                 single_flow_data.append(payload_arr)
 
                 packets_num += 1
@@ -107,8 +104,7 @@ class DataModifier:
 
     def write(self, data):
         df = pd.DataFrame(data=data,
-                          columns=["flow_id"] + [f'byte_{i + 1}' for i in range(512)] + ["label"] + list(
-                              self.custom_headers.keys()))
+                          columns=["flow_id"] + [f'byte_{i + 1}' for i in range(512)] + ["label"])
 
         if self.output_type == ModifierType.CSV:
             df.to_csv(self.output, index=False, mode='a', header=False)
@@ -120,12 +116,7 @@ class DataModifier:
         # Generate header
         headers = ["flow_id"]
         headers = headers + [f'byte_{i + 1}' for i in range(512)]
-
-        if self.custom_headers is not None:
-            headers = headers + list(self.custom_headers.keys())
-
         headers = headers + ["label"]
-
         df = pd.DataFrame(columns=headers)
 
         if self.output_type == ModifierType.CSV:
@@ -136,17 +127,17 @@ class DataModifier:
 
 # python data-modifier.py --pcap_files_dir /path/to/pcap_files --output /path/to/output_file --label 1
 # --custom_headers '{"header1":"value1", "header2":"value2"}' --mode csv
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parse pcap files and generate a dataset')
 
     parser.add_argument('-i', '--pcap_files_dir', type=str, required=True,
                         help='Input directory containing pcap files that need to be parsed')
     parser.add_argument('-o', '--output', type=str, required=True, help='Path of the output file')
-    parser.add_argument('-l', '--label', type=int, choices=[0, 1], required=True,
-                        help='Flag of data, can be 0 for benign and 1 for malicious')
-    parser.add_argument('--custom_headers', type=json.loads, required=False, default={},
-                        help='A dictionary of custom headers')
-
+    parser.add_argument('-l', '--label', type=int, choices=[item.value for item in Label.__members__.values()],
+                        required=True,
+                        help='Flag of data: \n 0 for benign \n 1 for dns2tcp \n 2 for iodine \n 3 for dnscat2')
     parser.add_argument('-m', '--mode', type=str, choices=['csv', 'feather'], required=True,
                         help='Output mode: csv or feather')
 
@@ -159,8 +150,7 @@ if __name__ == '__main__':
 
     mode = ModifierType.CSV if args.mode == 'csv' else ModifierType.FEATHER
 
-    DataModifier(output=args.output, output_type=mode, label=args.label,
-                 custom_headers=args.custom_headers).run(args.pcap_files_dir)
+    DataModifier(output=args.output, output_type=mode, label=args.label).run(args.pcap_files_dir)
 
     # Read the feather file
     # df = feather.read_feather('')
