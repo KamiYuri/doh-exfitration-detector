@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
+
 import pandas as pd
-import logging
 from scapy.all import *
 from scapy.layers.tls.all import *
 
@@ -112,7 +112,6 @@ def init_output_header(output: Path, output_type: ModifierType):
 
 
 if __name__ == '__main__':
-    # Ignore Scapy warning about TLS cipher suite
     dev = False
 
     if dev:
@@ -152,4 +151,4 @@ if __name__ == '__main__':
 
     DataModifier(output=output_path, output_type=mode, label=label.value).run(input_dir)
 
-# python data-modifier.py --input_dir  --output_path  --label dns2tcp --mode csv
+# python data_modifier.py --input_dir  --output_path  --label dns2tcp --mode csv
