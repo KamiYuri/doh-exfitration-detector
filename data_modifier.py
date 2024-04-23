@@ -44,21 +44,15 @@ class DataModifier:
         for file in self.pcaps_list:
             print(f"Processing {file}")
 
-            single_flow_packets = list()
-
             # Read the pcap file
+            single_flow_packets = list()
             packets = rdpcap(str(Path(file).resolve()))
             for packet in packets:
                 if len(single_flow_packets) >= PACKETS_NUM_THRESHOLD:
                     break
                 if packet.haslayer(TLSApplicationData):
-                    # Add the flow id
-                    payload_arr = [flow_id]
-                    # Extract the data
-                    payload_arr = payload_arr + self.extract_data(packet)
-                    # Add the label
-                    payload_arr.append(self.label)
-
+                    # Extract the data from the packet
+                    payload_arr = [flow_id] + self.extract_data(packet) + [self.label]
                     single_flow_packets.append(payload_arr)
 
             # If the number of packets is less than the threshold, then add padding packets
@@ -89,7 +83,7 @@ class DataModifier:
         return payload_arr
 
     def write(self, data: list):
-        df = pd.DataFrame(data=data, index=None)
+        df = pd.DataFrame(data=data)
 
         if self.output_type == ModifierType.CSV:
             df.to_csv(self.output, index=False, mode='a', header=False)
