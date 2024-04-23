@@ -1,13 +1,11 @@
 import argparse
-import json
 from pathlib import Path
-
+import pandas as pd
+import logging
 from scapy.all import *
 from scapy.layers.tls.all import *
-import pyarrow.feather as feather
-import pandas as pd
-import os
-import glob
+
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
 PACKETS_NUM_THRESHOLD = 10
 
@@ -25,7 +23,7 @@ class Label(Enum):
 
 
 class DataModifier:
-    def __init__(self, output: Path, output_type: ModifierType, label: Label):
+    def __init__(self, output: Path, output_type: ModifierType, label: str):
         self.label = label
         self.output = output
         self.output_type = output_type
@@ -59,14 +57,14 @@ class DataModifier:
                     # Extract the data
                     payload_arr = payload_arr + self.extract_data(packet)
                     # Add the label
-                    payload_arr.append(self.label.value)
+                    payload_arr.append(self.label)
 
                     single_flow_packets.append(payload_arr)
 
             # If the number of packets is less than the threshold, then add padding packets
             if len(single_flow_packets) < PACKETS_NUM_THRESHOLD:
                 for i in range(PACKETS_NUM_THRESHOLD - len(single_flow_packets)):
-                    single_flow_packets.append([flow_id] + [0] * 512 + [self.label.value])
+                    single_flow_packets.append([flow_id] + [0] * 512 + [self.label])
 
             # Increment the flow id and write the data to the output file
             flow_id += 1
@@ -114,36 +112,44 @@ def init_output_header(output: Path, output_type: ModifierType):
 
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser(description='Parse pcap files and generate a dataset')
-    #
-    # parser.add_argument('-i', '--pcap_files_dir', type=str, required=True,
-    #                     help='Input directory containing pcap files that need to be parsed')
-    # parser.add_argument('-o', '--output', type=str, required=True, help='Path of the output file')
-    # parser.add_argument('-l', '--label', type=int, choices=[item.value for item in Label.__members__.values()],
-    #                     required=True,
-    #                     help='Flag of data: \n 0 for benign \n 1 for dns2tcp \n 2 for iodine \n 3 for dnscat2')
-    # parser.add_argument('-m', '--mode', type=str, choices=['csv', 'feather'], required=True,
-    #                     help='Output mode: csv or feather')
-    #
-    # args = parser.parse_args()
-    # mode = ModifierType.CSV if args.mode == 'csv' else ModifierType.FEATHER
+    # Ignore Scapy warning about TLS cipher suite
+    dev = False
 
-    # Create output file if it does not exist
-    output_path = Path('datasets/output.csv')
+    if dev:
+        output_path = Path('datasets/output.csv')
+        input_dir = Path('datasets/pcaps')
+        mode = ModifierType.CSV
+        label = Label.DNS2TCP
+    else:
+        parser = argparse.ArgumentParser(description='Parse pcap files and generate a dataset')
+
+        parser.add_argument('-i', '--input_dir', type=str, required=True,
+                            help='Input directory containing pcap files that need to be parsed')
+        parser.add_argument('-o', '--output_path', type=str, required=True, help='Path of the output file')
+        parser.add_argument('-l', '--label', type=str, choices=[item.value for item in Label.__members__.values()],
+                            required=True,
+                            help='Flag of data: \n 0 for benign \n 1 for dns2tcp \n 2 for iodine \n 3 for dnscat2')
+        parser.add_argument('-m', '--mode', type=str, choices=['csv', 'feather'], required=True,
+                            help='Output mode: csv or feather')
+
+        args = parser.parse_args()
+
+        output_path = Path(args.output_path)
+        input_dir = Path(args.input_dir)
+        mode = ModifierType.CSV if args.mode == 'csv' else ModifierType.FEATHER
+        label = Label(args.label)
+
     # Remove the existing file
     if output_path.exists():
         output_path.unlink()
-
     # Create the file and write the header
     output_path.touch()
     init_output_header(output_path, ModifierType.CSV)
 
-    input_dir = Path('datasets/pcaps')
     if not input_dir.exists():
         print(f"Directory '{input_dir}' does not exist")
         exit(1)
 
-    DataModifier(output=output_path, output_type=ModifierType.CSV, label=Label.DNS2TCP).run(input_dir)
+    DataModifier(output=output_path, output_type=mode, label=label.value).run(input_dir)
 
-# python data-modifier.py --pcap_files_dir /path/to/pcap_files --output /path/to/output_file --label 1
-# --custom_headers '{"header1":"value1", "header2":"value2"}' --mode csv
+# python data-modifier.py --input_dir  --output_path  --label dns2tcp --mode csv
