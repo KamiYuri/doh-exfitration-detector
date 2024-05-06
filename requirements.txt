@@ -5,3 +5,4 @@ scapy
 scikit-learn
 seaborn
 matplotlib
+dask
