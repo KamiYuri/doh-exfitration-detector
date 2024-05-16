@@ -241,6 +241,6 @@ cython_debug/
 
 datasets/
 
-modified_dataset/
+dataset/
 eve.json
 results/
