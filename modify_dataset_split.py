@@ -1,4 +1,5 @@
 import argparse
+import gc
 from pathlib import Path
 
 import pandas as pd
@@ -17,6 +18,7 @@ def run():
 
     # Load the dataset
     data = pd.read_csv(file)
+    data_len = len(data)
     total_flows = data['flow_id'].nunique()
 
     print('Dataset loaded successfully!')
@@ -34,6 +36,8 @@ def run():
     base_train = data.iloc[base_train_inds]
     test = data.iloc[test_inds]
 
+    del data
+
     # Split the training set into training and validation sets
     train_inds, val_inds = next(
         GroupShuffleSplit(test_size=.20, n_splits=2, random_state=42).split(base_train, groups=base_train['flow_id']))
@@ -46,13 +50,33 @@ def run():
     val.to_csv(Path.cwd() / 'split_dataset' / f"{file.stem}_val.csv", index=False)
     test.to_csv(Path.cwd() / 'split_dataset' / f"{file.stem}_test.csv", index=False)
 
+    # Append to the combined dataset
+    train.to_csv(Path.cwd() / 'split_dataset' / 'combined_train.csv', mode='a', header=False, index=False)
+    val.to_csv(Path.cwd() / 'split_dataset' / 'combined_val.csv', mode='a', header=False, index=False)
+    test.to_csv(Path.cwd() / 'split_dataset' / 'combined_test.csv', mode='a', header=False, index=False)
+
     print('\nDatasets split successfully!')
 
     # Calculate the ratio of the datasets
-    print(f"Training set: {len(train) / len(data) * 100:.2f}%, {train['flow_id'].nunique()} flows")
-    print(f"Validation set: {len(val) / len(data) * 100:.2f}%, {val['flow_id'].nunique()} flows")
-    print(f"Testing set: {len(test) / len(data) * 100:.2f}%, {test['flow_id'].nunique()} flows")
+    print(f"Training set: {len(train) / data_len * 100:.2f}%, {train['flow_id'].nunique()} flows")
+    print(f"Validation set: {len(val) / data_len * 100:.2f}%, {val['flow_id'].nunique()} flows")
+    print(f"Testing set: {len(test) / data_len * 100:.2f}%, {test['flow_id'].nunique()} flows")
+
+    del train, val, test
+    print("\nMemory freed successfully! Finished!")
 
 
 if __name__ == '__main__':
+    # Init the combined dataset and write the header
+    combined_datasets = ['combined_train.csv', 'combined_val.csv', 'combined_test.csv']
+
+    headers = ["flow_id"]
+    headers = headers + [f'byte_{i + 1}' for i in range(512)]
+    headers = headers + ["label"]
+    df = pd.DataFrame(columns=headers)
+
+    for dataset in combined_datasets:
+        if not (Path.cwd() / 'split_dataset' / dataset).exists():
+            df.to_csv(Path.cwd() / 'split_dataset' / dataset, index=False)
+
     run()
