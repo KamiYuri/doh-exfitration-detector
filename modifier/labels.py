@@ -1,0 +1,1 @@
+labels = ['benign', 'dns2tcp', 'dnscat2', 'iodine']
