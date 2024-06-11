@@ -1,7 +1,5 @@
 import dask.dataframe as dd
 
-def add_prefix(prefix: str, df: dd.DataFrame) -> dd.DataFrame:
+
+def run(df: dd.DataFrame, prefix: str) -> dd.DataFrame:
     return df.assign(flow_id=prefix + df['flow_id'].astype(str)).persist()
-
-
-    
