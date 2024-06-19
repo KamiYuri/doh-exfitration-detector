@@ -1,0 +1,6 @@
+name: my_conda_env
+channels:
+  - conda-forge
+dependencies:
+  - tensorflow-gpu=^2.16
+  - keras=^3.3.3
