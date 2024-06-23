@@ -110,6 +110,8 @@ if __name__ == '__main__':
         parser.add_argument('-l', '--label', type=str, choices=['benign', 'dns2tcp', 'iodine', 'dnscat2'],
                             required=True,
                             help='Label of data')
+        parser.add_argument('-f', '--flow_prefix', type=str, default='',
+                            help='Prefix of the flow id (e.g., "DNS2TCP_")')
 
         args = parser.parse_args()
 
@@ -117,6 +119,7 @@ if __name__ == '__main__':
         output_path = Path(args.output_path)
         packets_num = args.packets_num
         label = args.label
+        flow_prefix = args.flow_prefix
 
     # Remove the existing file
     if output_path.exists():
@@ -129,4 +132,4 @@ if __name__ == '__main__':
         print(f"Directory '{input_dir}' does not exist")
         exit(1)
 
-    run(input_dir=input_dir, output_path=output_path, packets_num=packets_num, label=label, flow_prefix=label.upper() + '_')
+    run(input_dir=input_dir, output_path=output_path, packets_num=packets_num, label=label, flow_prefix=flow_prefix)
