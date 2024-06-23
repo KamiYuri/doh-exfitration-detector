@@ -5,3 +5,4 @@ scikit-learn
 seaborn
 matplotlib
 dask
+cryptography==38.0.4
