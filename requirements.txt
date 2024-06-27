@@ -1,4 +1,4 @@
-keras
+tensorflow==2.11.0
 pandas
 scapy
 scikit-learn
